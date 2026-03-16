@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KinderLearn – Words</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="page-header">
+  <a href="/singalong" class="back-btn">←</a>
+  <h1>📝 Easy Words</h1>
+</div>
+
+<div class="alphabet-stage">
+  <div style="width:100%;max-width:500px">
+    <div class="progress-bar"><div class="progress-fill" id="prog"></div></div>
+  </div>
+
+  <div class="alphabet-card" id="word-card">
+    <span class="alpha-emoji" id="w-emoji"></span>
+    <div class="alpha-word" style="font-size:5rem;color:var(--blue)" id="w-word"></div>
+  </div>
+
+  <!-- Word grid navigation -->
+  <div id="word-grid" style="display:flex;flex-wrap:wrap;gap:.4rem;justify-content:center;max-width:700px">
+    <!-- filled by JS -->
+  </div>
+
+  <div class="nav-controls">
+    <button class="btn btn-blue"   onclick="prev()">← Prev</button>
+    <button class="btn btn-yellow" id="auto-btn" onclick="toggleAuto()">▶ Auto Play</button>
+    <button class="btn btn-pink"   onclick="speakCurrent()">🔊 Say it!</button>
+    <button class="btn btn-green"  onclick="next()">Next →</button>
+  </div>
+</div>
+
+<script id="words-data" type="application/json">
+  {{ words | tojson | safe }}
+</script>
+<script>
+var words = JSON.parse(document.getElementById('words-data').textContent || '[]');
+var current = 0;
+var autoPlay = null;
+
+var miniRow = document.getElementById('word-grid');
+words.forEach((w, i) => {
+  const chip = document.createElement('span');
+  chip.textContent = w.word;
+  chip.style.cssText = 'padding:.25rem .7rem;border-radius:50px;cursor:pointer;font-weight:700;font-size:.85rem;background:#EEE;border:2px solid transparent;transition:all .2s';
+  chip.id = 'chip-'+i;
+  chip.onclick = () => goTo(i);
+  miniRow.appendChild(chip);
+});
+
+function render() {
+  const w = words[current];
+  document.getElementById('w-emoji').textContent = w.emoji;
+  document.getElementById('w-word').textContent  = w.word;
+  document.getElementById('prog').style.width = ((current+1)/words.length*100)+'%';
+
+  const card = document.getElementById('word-card');
+  card.style.animation = 'none'; void card.offsetWidth;
+  card.style.animation = 'popIn .4s cubic-bezier(.34,1.56,.64,1)';
+
+  const colors = ['#E0F7FF','#FFF3D4','#FFE0ED','#E0FFE8','#F3E0FF'];
+  card.style.background = colors[current % colors.length];
+
+  document.querySelectorAll('[id^="chip-"]').forEach((c,i) => {
+    c.style.background = i===current ? 'var(--blue)' : '#EEE';
+    c.style.color      = i===current ? 'white' : '';
+    c.style.borderColor= i===current ? 'var(--blue)' : 'transparent';
+  });
+}
+
+function goTo(i) { current = i; render(); }
+function next() { current = (current + 1) % words.length; render(); }
+function prev() { current = (current - 1 + words.length) % words.length; render(); }
+function speakCurrent() {
+  const w = words[current].word;
+  // Create a spelled out version. Convert to uppercase and use periods for natural TTS pauses. 
+  // Strip non-letter characters so it doesn't spell spaces or hyphens.
+  const letters = w.replace(/[^a-zA-Z]/g, '').toUpperCase().split('').join('. ');
+  const spelled = letters + '. ' + w;
+  fetch('/api/speak',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({text: spelled})});
+}
+function toggleAuto() {
+  if(autoPlay){
+    clearInterval(autoPlay);
+    autoPlay=null;
+    document.getElementById('auto-btn').textContent='▶ Auto Play';
+  } else {
+    speakCurrent();
+    autoPlay=setInterval(()=>{
+      next();
+      speakCurrent();
+    }, 6000); // 6 seconds to give TTS enough time to spell and speak the word
+    document.getElementById('auto-btn').textContent='⏸ Pause';
+  }
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight') next();
+  if(e.key==='ArrowLeft') prev();
+  if(e.key===' ') {
+    e.preventDefault();
+    speakCurrent();
+  }
+});
+render();
+</script>
+</body>
+</html>

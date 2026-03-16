@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KinderLearn – Login</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+</head>
+<body>
+<div class="login-page">
+
+  <!-- ── Left Art Panel ── -->
+  <div class="login-art">
+    <div class="mascot">🦁</div>
+    <h1>KinderLearn</h1>
+    <p>🎓 The Fun Way to Learn! 🌈</p>
+    <br>
+    <p style="font-size:.95rem;opacity:.8">Powered by Edge AI • Works Offline</p>
+  </div>
+
+  <!-- ── Right Form Panel ── -->
+  <div class="login-form-area">
+    <h2>Welcome Back! 👋</h2>
+
+    <!-- Remembered Users -->
+    {% if remembered %}
+    <div class="remembered-users form-box">
+      <h4>📌 Quick Login</h4>
+      {% for r in remembered %}
+        <span class="remembered-chip" onclick="quickFill('{{ r.identifier }}')">
+          🏫 {{ r.school_name }}
+        </span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Tab: Login / Register -->
+    <div class="tab-switch form-box">
+      <button class="active" onclick="showTab('login', this)">🔑 Login</button>
+      <button onclick="showTab('register', this)">📝 Register</button>
+    </div>
+
+    <!-- Error / Success -->
+    <div id="error-msg" class="error-msg form-box"></div>
+    <div id="success-msg" class="success-msg form-box"></div>
+
+    <!-- ── LOGIN FORM ── -->
+    <div id="login-tab" class="form-box">
+      <div class="form-group">
+        <label>📧 Email or 📱 Mobile Number</label>
+        <input type="text" id="login-id" placeholder="email@school.com or 9876543210" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>🔒 Password</label>
+        <input type="password" id="login-pass" placeholder="Enter password" autocomplete="current-password">
+      </div>
+      <br>
+      <button class="btn btn-purple" style="width:100%;font-size:1.2rem;padding:1rem"
+              onclick="doLogin()">🚀 Login</button>
+    </div>
+
+    <!-- ── REGISTER FORM ── -->
+    <div id="register-tab" class="form-box hidden">
+      <div class="form-group">
+        <label>🏫 School Name</label>
+        <input type="text" id="reg-name" placeholder="ABC Kindergarten">
+      </div>
+      <div class="form-group">
+        <label>📧 Email (Gmail)</label>
+        <input type="email" id="reg-email" placeholder="school@gmail.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>📱 Mobile Number</label>
+        <input type="tel" id="reg-mobile" placeholder="9876543210">
+      </div>
+      <div class="form-group">
+        <label>🔒 Password</label>
+        <input type="password" id="reg-pass" placeholder="Create a password" autocomplete="new-password">
+      </div>
+      <br>
+      <button class="btn btn-green" style="width:100%;font-size:1.2rem;padding:1rem"
+              onclick="doRegister()">✅ Register School</button>
+    </div>
+
+  </div><!-- /login-form-area -->
+</div><!-- /login-page -->
+
+<script>
+function showTab(tab, btn) {
+  document.querySelectorAll('.tab-switch button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('login-tab').classList.toggle('hidden', tab !== 'login');
+  document.getElementById('register-tab').classList.toggle('hidden', tab !== 'register');
+  clearMessages();
+}
+
+function clearMessages() {
+  ['error-msg','success-msg'].forEach(id => {
+    const el = document.getElementById(id);
+    el.style.display = 'none'; el.textContent = '';
+  });
+}
+
+function showError(msg) {
+  clearMessages();
+  const el = document.getElementById('error-msg');
+  el.textContent = '❌ ' + msg;
+  el.style.display = 'block';
+}
+
+function showSuccess(msg) {
+  clearMessages();
+  const el = document.getElementById('success-msg');
+  el.textContent = '✅ ' + msg;
+  el.style.display = 'block';
+}
+
+function quickFill(identifier) {
+  document.getElementById('login-id').value = identifier;
+  document.getElementById('login-pass').focus();
+}
+
+async function doLogin() {
+  const identifier = document.getElementById('login-id').value.trim();
+  const password   = document.getElementById('login-pass').value;
+  if (!identifier || !password) { showError('Please fill all fields'); return; }
+
+  const res = await fetch('/login', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ identifier, password })
+  });
+  const data = await res.json();
+  if (data.success) { window.location.href = '/home'; }
+  else { showError(data.message || 'Login failed'); }
+}
+
+async function doRegister() {
+  const school_name = document.getElementById('reg-name').value.trim();
+  const email  = document.getElementById('reg-email').value.trim();
+  const mobile = document.getElementById('reg-mobile').value.trim();
+  const password = document.getElementById('reg-pass').value;
+
+  if (!school_name || !password || (!email && !mobile)) {
+    showError('School name, password, and email or mobile are required'); return;
+  }
+
+  const res = await fetch('/register', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ school_name, email, mobile, password })
+  });
+  const data = await res.json();
+  if (data.success) {
+    showSuccess('School registered! Please login.');
+    showTab('login', document.querySelector('.tab-switch button'));
+  } else {
+    showError(data.message || 'Registration failed');
+  }
+}
+
+// Enter key support
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    if (!document.getElementById('login-tab').classList.contains('hidden')) doLogin();
+    else doRegister();
+  }
+});
+</script>
+</body>
+</html>

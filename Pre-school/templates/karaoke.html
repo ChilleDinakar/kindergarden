@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KinderLearn – Karaoke</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body style="background:#0a0a1a">
+
+<div class="page-header" style="background:#11112a;border-bottom:1px solid #333">
+  <a href="/singalong" class="back-btn" style="color:white">←</a>
+  <h1 style="color:var(--yellow)">🎤 Karaoke – Read Along!</h1>
+</div>
+
+<div class="karaoke-stage">
+  <!-- Song selector -->
+  <div class="karaoke-selector" id="k-selector"></div>
+
+  <!-- Display -->
+  <div class="karaoke-display" id="k-display">
+    <div class="k-title" id="k-title"></div>
+    <div id="k-lines"></div>
+  </div>
+
+  <!-- Controls -->
+  <div class="nav-controls">
+    <button class="btn btn-yellow" id="play-btn" onclick="togglePlay()">▶ Start</button>
+    <button class="btn btn-outline" onclick="restart()" style="border-color:var(--yellow);color:var(--yellow)">↩ Restart</button>
+    <div style="color:white;font-weight:700;font-size:.9rem">
+      Speed: <input type="range" id="speed" min="1" max="5" value="3" style="vertical-align:middle"> <span id="speed-label">Normal</span>
+    </div>
+  </div>
+
+  <p style="color:rgba(255,255,255,.5);font-size:.85rem;text-align:center">
+    🎵 Music plays offline. Follow the highlighted line and sing along!
+  </p>
+</div>
+
+<script>
+const rhymes = {{ rhymes | tojson }};
+let currentRhyme = 0;
+let currentLine  = -1;
+let playing = false;
+let timer   = null;
+
+const speedLabels = ['Very Slow','Slow','Normal','Fast','Very Fast'];
+const speedMs     = [4500, 3500, 2500, 1800, 1200];
+
+document.getElementById('speed').addEventListener('input', function() {
+  document.getElementById('speed-label').textContent = speedLabels[this.value-1];
+  if (playing) { restart(); startPlay(); }
+});
+
+// Build selector tabs
+const sel = document.getElementById('k-selector');
+rhymes.forEach((r, i) => {
+  const btn = document.createElement('button');
+  btn.className = 'k-tab' + (i===0?' active':'');
+  btn.textContent = r.title;
+  btn.onclick = () => selectRhyme(i, btn);
+  sel.appendChild(btn);
+});
+
+function selectRhyme(i, btn) {
+  stopPlay();
+  currentRhyme = i;
+  document.querySelectorAll('.k-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLines();
+  currentLine = -1;
+}
+
+function renderLines() {
+  const r = rhymes[currentRhyme];
+  document.getElementById('k-title').textContent = '🎵 ' + r.title;
+  const linesDiv = document.getElementById('k-lines');
+  linesDiv.innerHTML = '';
+  r.lines.forEach((l, i) => {
+    const div = document.createElement('div');
+    div.className = 'k-line future';
+    div.id = 'line-' + i;
+    div.textContent = l;
+    linesDiv.appendChild(div);
+  });
+}
+
+function highlightLine(i) {
+  const lines = rhymes[currentRhyme].lines;
+  lines.forEach((_, j) => {
+    const el = document.getElementById('line-' + j);
+    if (!el) return;
+    el.className = 'k-line ' + (j < i ? 'past' : j === i ? 'current' : 'future');
+    if (j === i) el.scrollIntoView({behavior:'smooth', block:'center'});
+  });
+}
+
+function startPlay() {
+  const speed = parseInt(document.getElementById('speed').value);
+  const delay = speedMs[speed - 1];
+  const lines  = rhymes[currentRhyme].lines;
+
+  playing = true;
+  document.getElementById('play-btn').textContent = '⏸ Pause';
+
+  function step() {
+    currentLine++;
+    if (currentLine >= lines.length) { stopPlay(); return; }
+    highlightLine(currentLine);
+    // Speak each line via TTS
+    fetch('/api/speak', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({text: lines[currentLine]})});
+    timer = setTimeout(step, delay);
+  }
+  step();
+}
+
+function stopPlay() {
+  playing = false;
+  clearTimeout(timer);
+  document.getElementById('play-btn').textContent = '▶ Start';
+}
+
+function togglePlay() {
+  if (playing) stopPlay();
+  else startPlay();
+}
+
+function restart() {
+  stopPlay();
+  currentLine = -1;
+  renderLines();
+}
+
+// Init
+renderLines();
+</script>
+</body>
+</html>

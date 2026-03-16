@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KinderLearn – Home</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+</head>
+<body>
+<div class="home-page">
+
+  <!-- Top Bar -->
+  <div class="home-topbar">
+    <h1>🎓 KinderLearn</h1>
+    <div style="display:flex;align-items:center;gap:1rem">
+      <span class="welcome-tag">🏫 {{ school_name }}</span>
+      <a href="/logout" class="btn btn-outline" style="font-size:.9rem;padding:.5rem 1.2rem">🚪 Logout</a>
+    </div>
+  </div>
+
+  <div class="home-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-title">Activities</div>
+      <a href="/rhymes"   class="nav-item" style="--c:var(--pink)">
+        <span class="nav-icon">🎵</span>
+        <span>Rhymes</span>
+        <span class="nav-badge">HOT</span>
+      </a>
+      <a href="/singalong" class="nav-item" style="--c:var(--blue)">
+        <span class="nav-icon">🎤</span>
+        <span>Sing Along</span>
+      </a>
+      <a href="/numbers"  class="nav-item" style="--c:var(--green)">
+        <span class="nav-icon">🔢</span>
+        <span>Numbers</span>
+        <span class="nav-badge">AI</span>
+      </a>
+      <a href="/motion"   class="nav-item" style="--c:var(--orange)">
+        <span class="nav-icon">🕺</span>
+        <span>Motion Games</span>
+        <span class="nav-badge">AI</span>
+      </a>
+    </aside>
+
+    <!-- Main -->
+    <main class="main-content">
+      <div class="welcome-banner">
+        <h2>Hello, {{ school_name }}! 🎉</h2>
+        <p>Ready for a fun day of learning? Pick an activity to get started!</p>
+      </div>
+
+      <h2 class="section-title">✨ Choose an Activity</h2>
+      <div class="activity-grid">
+        <a href="/rhymes" class="activity-card ac-rhymes">
+          <span class="ac-icon">🎵</span>
+          <h3>Rhymes</h3>
+          <p>Watch trending kids rhymes</p>
+        </a>
+        <a href="/singalong" class="activity-card ac-sing">
+          <span class="ac-icon">🎤</span>
+          <h3>Sing Along</h3>
+          <p>Alphabets, Words & Karaoke</p>
+        </a>
+        <a href="/numbers" class="activity-card ac-numbers">
+          <span class="ac-icon">🔢</span>
+          <h3>Numbers</h3>
+          <p>Show fingers, learn numbers!</p>
+        </a>
+        <a href="/motion" class="activity-card ac-motion">
+          <span class="ac-icon">🕺</span>
+          <h3>Motion Games</h3>
+          <p>Group maths with body movement</p>
+        </a>
+      </div>
+
+      <!-- Fun facts ticker -->
+      <div style="margin-top:3rem;padding:1.5rem;background:white;border-radius:var(--radius);box-shadow:var(--shadow);text-align:center;">
+        <p style="font-family:var(--font-head);font-size:1.2rem;color:var(--purple)" id="funfact"></p>
+      </div>
+    </main>
+  </div>
+
+</div>
+
+<script>
+const facts = [
+  "🌟 Did you know? Kids learn faster when they're having fun!",
+  "🎵 Music helps children remember things better!",
+  "🔢 Counting with fingers is how mathematicians started!",
+  "🎨 Colors help kids express their feelings!",
+  "🌈 Every day is a new adventure in learning!",
+  "🧠 Playing games makes your brain stronger!",
+  "⭐ You're a superstar learner today!",
+];
+let fi = 0;
+function updateFact() {
+  document.getElementById('funfact').textContent = facts[fi++ % facts.length];
+}
+updateFact();
+setInterval(updateFact, 4000);
+</script>
+</body>
+</html>

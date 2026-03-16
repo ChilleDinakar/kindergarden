@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KinderLearn – Numbers Game</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="page-header">
+  <a href="/home" class="back-btn">←</a>
+  <h1>🔢 Numbers Finger Game</h1>
+</div>
+
+<div class="numbers-page">
+
+  <!-- Instructions banner -->
+  <div style="background:linear-gradient(135deg,var(--green),var(--teal));color:white;
+              border-radius:var(--radius);padding:1.2rem 2rem;text-align:center;max-width:600px;width:100%">
+    <b style="font-family:var(--font-head);font-size:1.2rem">
+      📷 Show your fingers to the camera!
+    </b><br>
+    <span style="font-size:.9rem;opacity:.9">The app will count your fingers and say the number out loud 🔊</span>
+  </div>
+
+  <div style="display:flex;gap:2rem;flex-wrap:wrap;justify-content:center;align-items:flex-start">
+
+    <!-- Camera -->
+    <div>
+      <div class="camera-frame">
+        <video id="cam" autoplay playsinline muted></video>
+        <canvas id="overlay"></canvas>
+      </div>
+      <div style="margin-top:.8rem;display:flex;align-items:center;justify-content:space-between">
+        <div class="detect-status"><div class="status-dot"></div><span id="status-text">Starting camera…</span></div>
+        <button class="btn btn-green" onclick="toggleDetect()" id="detect-btn">⏸ Pause</button>
+      </div>
+    </div>
+
+    <!-- Result panel -->
+    <div style="text-align:center">
+      <div class="finger-display" id="num-display">?</div>
+      <div class="number-name"    id="num-name"></div>
+      <div class="finger-label" style="margin-top:.5rem" id="num-fingers"></div>
+
+      <!-- Last 5 history -->
+      <div style="margin-top:1.5rem">
+        <p style="font-weight:700;color:var(--text-mid);font-size:.9rem">📜 Recent</p>
+        <div id="history" style="display:flex;gap:.5rem;justify-content:center;margin-top:.5rem;flex-wrap:wrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Number reference strip -->
+  <div style="display:flex;gap:.8rem;flex-wrap:wrap;justify-content:center;max-width:700px">
+    {% for i in range(11) %}
+    <div style="background:white;border-radius:var(--radius-sm);padding:.8rem 1.2rem;
+                text-align:center;box-shadow:0 4px 12px rgba(0,0,0,.08);min-width:80px">
+      <div style="font-family:var(--font-head);font-size:2.5rem;color:var(--purple)">{{ i }}</div>
+      <div style="font-size:1.5rem">{{ ['✊','☝️','✌️','🤟','🖖','🖐️','🖐️☝️','🖐️✌️','🖐️🤟','🖐️🖖','🖐️🖐️'][i] }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+const NUMBER_NAMES = ['Zero','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten'];
+const video   = document.getElementById('cam');
+const overlay = document.getElementById('overlay');
+const ctx     = overlay.getContext('2d');
+let detecting = true;
+let lastNum   = -2;
+let sendCooldown = false;
+const history = [];
+
+// Start camera
+async function startCam() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {facingMode:'user', width:{ideal:480}, height:{ideal:360}}
+    });
+    video.srcObject = stream;
+    video.onloadedmetadata = () => {
+      overlay.width  = video.videoWidth;
+      overlay.height = video.videoHeight;
+      document.getElementById('status-text').textContent = 'Camera active – show fingers!';
+      detectLoop();
+    };
+  } catch(e) {
+    document.getElementById('status-text').textContent = '❌ Camera permission denied';
+  }
+}
+
+// Capture frame → send to backend
+async function captureAndSend() {
+  if (sendCooldown || !detecting) return;
+  sendCooldown = true;
+
+  const tmpCanvas = document.createElement('canvas');
+  tmpCanvas.width  = video.videoWidth;
+  tmpCanvas.height = video.videoHeight;
+  tmpCanvas.getContext('2d').drawImage(video, 0, 0);
+  const b64 = tmpCanvas.toDataURL('image/jpeg', 0.7);
+
+  try {
+    const res  = await fetch('/api/detect_fingers', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({image: b64})
+    });
+    const data = await res.json();
+    const n = data.fingers;
+
+    if (n >= 0 && n !== lastNum) {
+      lastNum = n;
+      showResult(n);
+    }
+  } catch(e) { /* network error */ }
+
+  setTimeout(() => { sendCooldown = false; }, 1800);
+}
+
+function showResult(n) {
+  const el = document.getElementById('num-display');
+  el.textContent = n;
+  el.style.animation = 'none'; void el.offsetWidth;
+  el.style.animation = 'popIn .4s cubic-bezier(.34,1.56,.64,1)';
+
+  document.getElementById('num-name').textContent = NUMBER_NAMES[n] || '';
+  document.getElementById('num-fingers').textContent = n === 1 ? '1 finger' : n + ' fingers';
+
+  addHistory(n);
+}
+
+function addHistory(n) {
+  history.unshift(n);
+  if(history.length > 5) history.pop();
+  const div = document.getElementById('history');
+  div.innerHTML = '';
+  history.forEach(h => {
+    const chip = document.createElement('span');
+    chip.textContent = h;
+    chip.style.cssText = 'background:var(--purple);color:white;border-radius:50%;width:40px;height:40px;display:grid;place-items:center;font-family:var(--font-head);font-size:1.2rem';
+    div.appendChild(chip);
+  });
+}
+
+function detectLoop() {
+  if(detecting) captureAndSend();
+  setTimeout(detectLoop, 2000);
+}
+
+function toggleDetect() {
+  detecting = !detecting;
+  document.getElementById('detect-btn').textContent = detecting ? '⏸ Pause' : '▶ Resume';
+  document.getElementById('status-text').textContent = detecting ? 'Camera active – show fingers!' : 'Paused';
+}
+
+startCam();
+</script>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KinderLearn – Motion Games</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="page-header">
+  <a href="/home" class="back-btn">←</a>
+  <h1>🕺 Motion Maths Game</h1>
+</div>
+
+<div class="motion-page">
+
+  <!-- Instructions -->
+  <div style="background:linear-gradient(135deg,var(--orange),var(--yellow));color:#333;
+              border-radius:var(--radius);padding:1.2rem 2rem;text-align:center;max-width:700px;width:100%">
+    <b style="font-family:var(--font-head);font-size:1.2rem">📷 Group Maths Game!</b><br>
+    <span style="font-size:.9rem">A maths question will appear. The number of kids standing in front of the camera = the answer!<br>
+    Move kids in and out of the frame to match the answer.</span>
+  </div>
+
+  <!-- Current problem -->
+  <div class="math-problem" id="math-box">
+    <div class="math-eq" id="math-eq">4 + 6 = ?</div>
+    <div class="math-hint" id="math-hint">Stand the correct number of kids in front of the camera!</div>
+  </div>
+
+  <div style="display:flex;gap:2rem;flex-wrap:wrap;justify-content:center;align-items:center">
+
+    <!-- Camera -->
+    <div>
+      <div class="camera-frame">
+        <video id="cam" autoplay playsinline muted style="width:480px"></video>
+      </div>
+      <div style="margin-top:.8rem;display:flex;justify-content:space-between;align-items:center">
+        <div class="detect-status"><div class="status-dot"></div><span id="status-text">Starting…</span></div>
+        <button class="btn btn-orange" onclick="toggleDetect()" id="detect-btn">⏸ Pause</button>
+      </div>
+    </div>
+
+    <!-- Count + Feedback -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:1rem">
+      <div class="person-count-display">
+        <div class="pc-num" id="pc-num">0</div>
+        <div class="pc-label">kids detected</div>
+      </div>
+      <div class="game-feedback" id="feedback"></div>
+      <button class="btn btn-blue" onclick="nextQuestion()">➡ Next Question</button>
+      <button class="btn btn-outline" onclick="resetGame()">🔄 Reset Score</button>
+      <div style="font-family:var(--font-head);font-size:1.2rem;color:var(--text-mid)" id="score-display">Score: 0</div>
+    </div>
+  </div>
+
+  <!-- Score board strip -->
+  <div style="background:white;border-radius:var(--radius);padding:1.5rem 2rem;max-width:600px;width:100%;box-shadow:var(--shadow)">
+    <p style="font-family:var(--font-head);font-size:1.1rem;color:var(--purple);margin-bottom:.8rem">🏆 Leaderboard</p>
+    <div id="leaderboard" style="display:flex;gap:1rem;flex-wrap:wrap"></div>
+  </div>
+</div>
+
+<script>
+// ─── Questions generator ───────────────────────────────────
+function genQuestions() {
+  const qs = [];
+  // Addition: result 1–10
+  for(let a=1;a<=5;a++) for(let b=1;b<=5;b++) if(a+b<=10) qs.push({a,b,op:'+',ans:a+b});
+  // Subtraction: result 1–9
+  for(let a=2;a<=10;a++) for(let b=1;b<a;b++) qs.push({a,b,op:'-',ans:a-b});
+  return qs.sort(()=>Math.random()-.5);
+}
+
+let questions = genQuestions();
+let qIndex = 0;
+let score  = 0;
+let detecting = true;
+let correctStreak = 0;
+const video = document.getElementById('cam');
+let sendCooldown = false;
+let lastCount = -1;
+let answerLocked = false;
+
+function currentQ() { return questions[qIndex % questions.length]; }
+
+function renderQ() {
+  const q = currentQ();
+  document.getElementById('math-eq').textContent = `${q.a} ${q.op} ${q.b} = ?`;
+  document.getElementById('math-hint').textContent =
+    `👶 Stand exactly ${q.ans} kid${q.ans!==1?'s':''} in the camera frame!`;
+  document.getElementById('feedback').textContent = '';
+  document.getElementById('feedback').className = 'game-feedback';
+  answerLocked = false;
+
+  // Speak the question
+  fetch('/api/speak',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({text: `What is ${q.a} ${q.op==='+'?'plus':'minus'} ${q.b}?`})});
+}
+
+function nextQuestion() {
+  qIndex++;
+  renderQ();
+}
+
+function resetGame() {
+  score = 0; qIndex = 0; correctStreak = 0;
+  document.getElementById('score-display').textContent = 'Score: 0';
+  document.getElementById('leaderboard').innerHTML = '';
+  renderQ();
+}
+
+function checkAnswer(count) {
+  if(answerLocked) return;
+  const q = currentQ();
+  if(count === q.ans) {
+    answerLocked = true;
+    score++;
+    correctStreak++;
+    document.getElementById('score-display').textContent = 'Score: ' + score;
+    const fb = document.getElementById('feedback');
+    fb.textContent = '🎉 Correct! ' + ['Amazing!','Brilliant!','Superstar!','Wow!','🌟'][Math.floor(Math.random()*5)];
+    fb.className = 'game-feedback correct';
+    addToLeaderboard(count, q);
+    fetch('/api/speak',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text: 'Correct! Well done!'})});
+    setTimeout(nextQuestion, 3000);
+  } else if(count !== lastCount) {
+    const fb = document.getElementById('feedback');
+    fb.textContent = count < q.ans ? `Need ${q.ans - count} more! 🔼` : `Too many! Move ${count - q.ans} out 🔽`;
+    fb.className = 'game-feedback wrong';
+  }
+  lastCount = count;
+}
+
+function addToLeaderboard(count, q) {
+  const chip = document.createElement('div');
+  chip.style.cssText = 'background:var(--green);color:white;border-radius:var(--radius-sm);padding:.5rem 1rem;font-family:var(--font-head);font-size:.9rem';
+  chip.textContent = `✅ ${q.a}${q.op}${q.b}=${q.ans}`;
+  document.getElementById('leaderboard').prepend(chip);
+}
+
+// ─── Camera ───────────────────────────────────────────────
+async function startCam() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:'environment',width:{ideal:640},height:{ideal:480}}
+    });
+    video.srcObject = stream;
+    video.onloadedmetadata = () => {
+      document.getElementById('status-text').textContent = 'Camera active!';
+      detectLoop();
+    };
+  } catch(e) {
+    document.getElementById('status-text').textContent = '❌ Camera permission denied';
+  }
+}
+
+async function captureAndSend() {
+  if(sendCooldown||!detecting) return;
+  sendCooldown = true;
+  const tmp = document.createElement('canvas');
+  tmp.width=video.videoWidth; tmp.height=video.videoHeight;
+  tmp.getContext('2d').drawImage(video,0,0);
+  const b64 = tmp.toDataURL('image/jpeg',.6);
+  try {
+    const res = await fetch('/api/detect_group',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({image:b64})
+    });
+    const data = await res.json();
+    const count = data.count || 0;
+    document.getElementById('pc-num').textContent = count;
+    checkAnswer(count);
+  } catch(e){}
+  setTimeout(()=>{sendCooldown=false;}, 2000);
+}
+
+function detectLoop() {
+  captureAndSend();
+  setTimeout(detectLoop, 2000);
+}
+
+function toggleDetect() {
+  detecting = !detecting;
+  document.getElementById('detect-btn').textContent = detecting ? '⏸ Pause' : '▶ Resume';
+}
+
+startCam();
+renderQ();
+</script>
+</body>
+</html>

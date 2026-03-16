@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KinderLearn – Sing Along</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="page-header">
+  <a href="/home" class="back-btn">←</a>
+  <h1>🎤 Sing Along</h1>
+</div>
+
+<div class="sing-options">
+  <a href="/singalong/alphabets" class="sing-opt">
+    <span class="so-icon">🔤</span>
+    <h3>Alphabets</h3>
+    <p style="color:var(--text-mid);margin-top:.5rem">A to Z with words</p>
+  </a>
+  <a href="/singalong/words" class="sing-opt">
+    <span class="so-icon">📝</span>
+    <h3>Words</h3>
+    <p style="color:var(--text-mid);margin-top:.5rem">Easy first words</p>
+  </a>
+  <a href="/singalong/karaoke" class="sing-opt">
+    <span class="so-icon">🎤</span>
+    <h3>Rhymes</h3>
+    <p style="color:var(--text-mid);margin-top:.5rem">Karaoke — read along!</p>
+  </a>
+</div>
+</body>
+</html>

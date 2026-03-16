@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KinderLearn – Alphabets</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="page-header">
+  <a href="/singalong" class="back-btn">←</a>
+  <h1>🔤 Alphabets A – Z</h1>
+</div>
+
+<div class="alphabet-stage">
+  <!-- Progress -->
+  <div style="width:100%;max-width:500px">
+    <div class="progress-bar"><div class="progress-fill" id="prog"></div></div>
+  </div>
+
+  <!-- Card -->
+  <div class="alphabet-card" id="alpha-card">
+    <span class="alpha-emoji" id="alpha-emoji"></span>
+    <div class="alpha-letter" id="alpha-letter"></div>
+    <div class="alpha-word"   id="alpha-word"></div>
+  </div>
+
+  <!-- Dot navigation -->
+  <div class="nav-dot-row" id="dot-row"></div>
+
+  <!-- Controls -->
+  <div class="nav-controls">
+    <button class="btn btn-blue" onclick="prev()">← Prev</button>
+    <button class="btn btn-yellow" id="auto-btn" onclick="toggleAuto()">▶ Auto Play</button>
+    <button class="btn btn-pink"  onclick="speakCurrent()">🔊 Listen</button>
+    <button class="btn btn-green" onclick="next()">Next →</button>
+  </div>
+</div>
+
+<script>
+const data = {{ alphabets | tojson }};
+let current = 0;
+let autoPlay = null;
+
+// Build dots
+const dotRow = document.getElementById('dot-row');
+data.forEach((_, i) => {
+  const d = document.createElement('div');
+  d.className = 'nav-dot';
+  d.onclick = () => goTo(i);
+  dotRow.appendChild(d);
+});
+
+function render() {
+  const a = data[current];
+  document.getElementById('alpha-letter').textContent = a.letter;
+  document.getElementById('alpha-word').textContent   = a.word;
+  document.getElementById('alpha-emoji').textContent  = a.emoji;
+  document.getElementById('prog').style.width = ((current+1)/data.length*100) + '%';
+
+  // Animate card
+  const card = document.getElementById('alpha-card');
+  card.style.animation = 'none';
+  void card.offsetWidth;
+  card.style.animation = 'popIn .4s cubic-bezier(.34,1.56,.64,1)';
+
+  // Color the card
+  const colors = ['#FFE0ED','#E0EEFF','#E0FFE8','#FFF3D4','#F3E0FF'];
+  card.style.background = colors[current % colors.length];
+
+  // Dots
+  document.querySelectorAll('.nav-dot').forEach((d,i) => d.classList.toggle('active', i===current));
+}
+
+function goTo(i) { current = i; render(); }
+function next()  { if(current < data.length-1) { current++; render(); } }
+function prev()  { if(current > 0)              { current--; render(); } }
+
+function speakCurrent() {
+  const a = data[current];
+  fetch('/api/speak', {method:'POST',headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({text: a.letter + ' for ' + a.word})});
+}
+
+function toggleAuto() {
+  if (autoPlay) {
+    clearInterval(autoPlay);
+    autoPlay = null;
+    document.getElementById('auto-btn').textContent = '▶ Auto Play';
+  } else {
+    autoPlay = setInterval(() => {
+      if (current < data.length-1) { current++; render(); speakCurrent(); }
+      else { clearInterval(autoPlay); autoPlay=null; document.getElementById('auto-btn').textContent='▶ Auto Play'; }
+    }, 3000);
+    document.getElementById('auto-btn').textContent = '⏸ Pause';
+    speakCurrent();
+  }
+}
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight') next();
+  if (e.key === 'ArrowLeft')  prev();
+  if (e.key === ' ')          speakCurrent();
+});
+
+render();
+</script>
+</body>
+</html>

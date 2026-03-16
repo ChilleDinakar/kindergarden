@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KinderLearn – Rhymes</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="page-header">
+  <a href="/home" class="back-btn">←</a>
+  <h1>🎵 Trending Rhymes</h1>
+  <span style="margin-left:auto;font-size:.85rem;color:var(--text-mid)">⚠️ Requires Internet</span>
+</div>
+
+<div class="rhymes-grid">
+  {% for r in rhymes %}
+  <div class="rhyme-card" onclick="openRhyme('{{ r.url }}', '{{ r.title }}')">
+    <span class="r-icon">{{ r.thumbnail }}</span>
+    <h3>{{ r.title }}</h3>
+    <p style="color:var(--pink);font-weight:700;margin-top:.5rem;font-size:.85rem">▶ Play</p>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- YouTube Modal -->
+<div class="yt-modal-overlay" id="yt-overlay" onclick="closeModal(event)">
+  <div class="yt-modal" id="yt-modal">
+    <button class="yt-close" onclick="closeRhyme()">✕</button>
+    <iframe id="yt-iframe" src="" allowfullscreen allow="autoplay"></iframe>
+  </div>
+</div>
+
+<script>
+function getYTId(url) {
+  const m = url.match(/[?&]v=([^&]+)/) || url.match(/youtu\.be\/([^?]+)/);
+  return m ? m[1] : '';
+}
+function openRhyme(url, title) {
+  const id = getYTId(url);
+  document.getElementById('yt-iframe').src = `https://www.youtube.com/embed/${id}?autoplay=1`;
+  document.getElementById('yt-overlay').classList.add('open');
+}
+function closeRhyme() {
+  document.getElementById('yt-iframe').src = '';
+  document.getElementById('yt-overlay').classList.remove('open');
+}
+function closeModal(e) {
+  if (e.target === document.getElementById('yt-overlay')) closeRhyme();
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeRhyme(); });
+</script>
+</body>
+</html>
